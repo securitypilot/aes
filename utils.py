@@ -1,12 +1,6 @@
 #!/usr/bin/python
 
-import aes
 from array import array
-
-def new(key, IV=None):
-	if IV is None:
-        	raise ValueError	
-	return CBCMode(AES(key), IV)
     
 def galois_multiply(a, b):
     p = 0
