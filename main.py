@@ -1,5 +1,12 @@
-import os
-from utils import new
+#!/usr/bin/python
+
+from os import urandom
+from aes import CBCMode, AES
+
+def new(key, IV=None):
+    if IV is None:
+        raise ValueError
+    return CBCMode(AES(key), IV)
 
 def main(data):
     key_128 = os.urandom(16)
