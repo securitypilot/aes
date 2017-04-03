@@ -6,9 +6,6 @@ from utils import sbox, inv_sbox, rcon_table, galois_multiply
 sbox = sbox()
 inv_sbox = inv_sbox()
 rcon_table = rcon_table()
-
-ECB_MODE = 1
-CBC_MODE = 2
 key_size = None
 
 
@@ -21,7 +18,6 @@ class AES(object):
     def key_expansion(self, key):
         self.key = key
         self.key_size = len(key)
-
         if self.key_size == 16:
             self.rounds = 10
         elif self.key_size == 24:
@@ -33,27 +29,23 @@ class AES(object):
 
         expanded_key = array('B', self.key)
         keypart = expanded_key[-4:]
-        
         for cycle in xrange(1, 11):
             keypart = keypart[1:4] + keypart[0:1]
             for byte in xrange(4):
                 keypart[byte] = sbox[keypart[byte]]
-
             keypart[0] ^= rcon_table[cycle]
             for z in xrange(4):
                 for j in xrange(4):
                     keypart[j] ^= expanded_key[-self.key_size + j]
                 expanded_key.extend(keypart)
-
             if len(expanded_key) >= (self.rounds + 1) * self.block_size:
                 break
-
+		
         self.exkey = expanded_key
 
     def add_round_key(self, data, round):
         offset = round * 16
         exkey = self.exkey
-
         for i in xrange(16):
             data[i] ^= exkey[offset + i]
 
@@ -74,7 +66,6 @@ class AES(object):
     def mix_columns(self, data):
         mul_by_2 = array('B', [galois_multiply(x, 2) for x in range(256)])
         mul_by_3 = array('B', [galois_multiply(x, 3) for x in range(256)])
-
         for column in xrange(0, 16, 4):
             v0, v1, v2, v3 = data[column:column + 4]
             data[column] = mul_by_2[v0] ^ v3 ^ v2 ^ mul_by_3[v1]
@@ -87,7 +78,6 @@ class AES(object):
         mul_by_11 = array('B', [galois_multiply(x, 11) for x in range(256)])
         mul_by_13 = array('B', [galois_multiply(x, 13) for x in range(256)])
         mul_by_14 = array('B', [galois_multiply(x, 14) for x in range(256)])
-
         for column in xrange(0, 16, 4):
             v0, v1, v2, v3 = data[column:column + 4]
             data[column] = mul_by_14[v0] ^ mul_by_9[v3] ^ mul_by_13[v2] ^ mul_by_11[v1]
@@ -119,30 +109,6 @@ class AES(object):
         self.sub_bytes(data, inv_sbox)
         self.add_round_key(data, 0)
 
-class ECBMode(object):
-    def __init__(self, aes):
-        self.aes = aes
-        self.block_size = aes.block_size
-
-    def ecb(self, data, aes_enc_dec):
-        block_size = self.block_size
-        if len(data) % block_size != 0:
-            raise ValueError
-       
-	   data = array('B', data)
-        for offset in xrange(0, len(data), block_size):
-            block = data[offset:offset+block_size]
-            aes_enc_dec(block)
-            data[offset:offset+block_size] = block
-
-        return data.tostring()
-
-    def encrypt(self, data):
-        return self.ecb(data, self.aes.encrypt_block)
-
-    def decrypt(self, data):
-        return self.ecb(data, self.aes.decrypt_block)
-
 class CBCMode(object):
     def __init__(self, cipher, IV):
         self.cipher = cipher
@@ -156,13 +122,10 @@ class CBCMode(object):
 
         data = array('B', data)
         IV = self.IV
-
         for offset in xrange(0, len(data), block_size):
             block = data[offset:offset+block_size]
-
             for i in xrange(block_size):
                 block[i] ^= IV[i]
-
             self.cipher.encrypt_block(block)
             data[offset:offset+block_size] = block
             IV = block
@@ -177,15 +140,12 @@ class CBCMode(object):
 
         data = array('B', data)
         IV = self.IV
-
         for offset in xrange(0, len(data), block_size):
             ctext = data[offset:offset+block_size]
             block = ctext[:]
             self.cipher.decrypt_block(block)
-
             for i in xrange(block_size):
                 block[i] ^= IV[i]
-
             data[offset:offset+block_size] = block
             IV = ctext
 
@@ -193,11 +153,6 @@ class CBCMode(object):
         return data.tostring()
 
 def new(key, mode, IV=None):
-    if mode == ECB_MODE:
-        return ECBMode(AES(key))
-    elif mode == CBC_MODE:
-        if IV is None:
+	if IV is None:
             raise ValueError
         return CBCMode(AES(key), IV)
-    else:
-        raise NotImplementedError
