@@ -151,8 +151,3 @@ class CBCMode(object):
 
         self.IV = IV
         return data.tostring()
-
-def new(key, mode, IV=None):
-	if IV is None:
-            raise ValueError
-        return CBCMode(AES(key), IV)
